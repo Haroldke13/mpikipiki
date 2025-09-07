@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Request a Ride</h2>
+<form method="POST">
+    {{ form.hidden_tag() }}
+    <div class="form-group">
+        {{ form.pickup.label }}
+        {{ form.pickup(class="form-control", id="pickup") }}
+    </div>
+    <div class="form-group">
+        {{ form.destination.label }}
+        {{ form.destination(class="form-control", id="destination") }}
+    </div>
+    {{ form.submit(class="btn btn-primary") }}
+</form>
+
+<!-- OSM + Leaflet Map -->
+<div id="map" style="height: 300px; margin-top: 20px; border-radius: 10px; overflow: hidden;"></div>
+
+<!-- Leaflet CSS & JS -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+
+<script>
+// Reverse geocode function using Nominatim
+async function reverseGeocode(lat, lon) {
+    try {
+        const res = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`
+        );
+        const data = await res.json();
+        return data.display_name || `${lat.toFixed(6)}, ${lon.toFixed(6)}`;
+    } catch {
+        return `${lat.toFixed(6)}, ${lon.toFixed(6)}`;
+    }
+}
+
+function initMap() {
+    const map = L.map("map").setView([-1.2921, 36.8219], 12); // Nairobi default
+
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        maxZoom: 19,
+        attribution: '&copy; <a href="https://www.openstreetmap.org/">OpenStreetMap</a>'
+    }).addTo(map);
+
+    let pickupMarker, destinationMarker;
+
+    map.on("click", async function (e) {
+        const { lat, lng } = e.latlng;
+
+        if (!pickupMarker) {
+            pickupMarker = L.marker([lat, lng]).addTo(map).bindPopup("Pickup").openPopup();
+            const place = await reverseGeocode(lat, lng);
+            document.getElementById("pickup").value = place;
+        } else if (!destinationMarker) {
+            destinationMarker = L.marker([lat, lng]).addTo(map).bindPopup("Destination").openPopup();
+            const place = await reverseGeocode(lat, lng);
+            document.getElementById("destination").value = place;
+        }
+    });
+}
+
+document.addEventListener("DOMContentLoaded", initMap);
+</script>
+{% endblock %}

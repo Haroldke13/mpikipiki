@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="text-center">
+    <h1>Welcome to RideNow 🚖</h1>
+    <p>Your reliable ride-hailing service.</p>
+    {% if not current_user.is_authenticated %}
+        <a href="{{ url_for('main.signup') }}" class="btn btn-primary">Get Started</a>
+    {% endif %}
+</div>
+{% endblock %}
