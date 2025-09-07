@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Trip Details</h2>
+<ul class="list-group">
+    <li class="list-group-item"><b>Ride Request:</b> {{ trip.ride_request_id }}</li>
+    <li class="list-group-item"><b>Start Time:</b> {{ trip.start_time }}</li>
+    <li class="list-group-item"><b>End Time:</b> {{ trip.end_time }}</li>
+    <li class="list-group-item"><b>Fare:</b> {{ trip.fare }}</li>
+    <li class="list-group-item"><b>Payment Status:</b> {{ trip.payment_status }}</li>
+</ul>
+{% endblock %}

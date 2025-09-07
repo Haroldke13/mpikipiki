@@ -1,0 +1,201 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Driver Dashboard</h2>
+
+<form method="POST">
+    {{ form.hidden_tag() }}
+    <div class="form-check mb-2">
+        {{ form.availability() }} {{ form.availability.label }}
+    </div>
+
+    <div class="form-group">
+        {{ form.current_location.label }}
+        {{ form.current_location(class="form-control", id="driver-current-location", placeholder="-1.2921, 36.8219") }}
+        <small class="form-text text-muted">
+            Tip: Click on the map to set your current location (lat, lng will auto-fill).
+        </small>
+    </div>
+
+    <div class="form-group">
+        {{ form.vehicle_details.label }}
+        {{ form.vehicle_details(class="form-control") }}
+    </div>
+
+    {{ form.submit(class="btn btn-success") }}
+</form>
+
+<hr>
+
+<h3>Pending Ride Requests</h3>
+{% if rides %}
+    <ul class="list-group mb-3">
+        {% for ride in rides %}
+        <li class="list-group-item">
+            <b>Pickup:</b> {{ ride.pickup }} |
+            <b>Destination:</b> {{ ride.destination }} |
+            <b>Status:</b> {{ ride.status }}
+
+            {% if ride.status == "pending" %}
+            <form method="POST" action="{{ url_for('main.accept_ride', ride_id=ride._id) }}" style="display:inline;">
+                {{ accept_forms[ride._id].hidden_tag() }}
+                {{ accept_forms[ride._id].submit(class="btn btn-sm btn-primary float-right") }}
+            </form>
+            {% elif ride.status == "accepted" and ride.driver_id == current_user.id %}
+            <span class="badge badge-success float-right">Accepted by you</span>
+            {% endif %}
+        </li>
+        {% endfor %}
+    </ul>
+{% else %}
+    <p>No pending rides.</p>
+{% endif %}
+
+
+
+
+
+<!-- Leaflet Map -->
+<div id="driver-map" style="height: 380px; border-radius: 10px; overflow: hidden;"></div>
+
+<!-- Leaflet CSS & JS -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+
+<script>
+    // ---------- Driver Dashboard: Leaflet Map ----------
+    (function () {
+        const mapEl = document.getElementById("driver-map");
+        if (!mapEl) return;
+    
+        const DEFAULT_CENTER = [-1.2921, 36.8219];
+        const DEFAULT_ZOOM = 12;
+    
+        const map = L.map("driver-map").setView(DEFAULT_CENTER, DEFAULT_ZOOM);
+    
+        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+            maxZoom: 19,
+            attribution: '&copy; <a href="https://www.openstreetmap.org/">OpenStreetMap</a> contributors',
+        }).addTo(map);
+    
+        const locInput = document.getElementById("driver-current-location");
+    
+        let driverMarker = null;
+    
+        // Reverse geocode to nearest place name
+        async function reverseGeocode(lat, lng) {
+            try {
+                const res = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json`);
+                const data = await res.json();
+                return data.display_name || `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
+            } catch {
+                return `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
+            }
+        }
+    
+        // Update input field with nearest place name
+        //async function setLocInput(latlng) {
+        //    if (locInput) {
+        //        const placeName = await reverseGeocode(latlng.lat, latlng.lng);
+        //        locInput.value = placeName;
+        //    }
+        //}
+    
+        // Update input field with nearest place name + coords
+        async function setLocInput(latlng) {
+            if (locInput) {
+                // Reverse geocode to place name
+                const placeName = await reverseGeocode(latlng.lat, latlng.lng);
+                // Save as "lat,lng|place name"
+                locInput.value = `${latlng.lat.toFixed(6)},${latlng.lng.toFixed(6)}|${placeName}`;
+            }
+        }
+
+        // Click-to-set current location
+        map.on("click", (e) => {
+            const { latlng } = e;
+            if (!driverMarker) {
+                driverMarker = L.marker(latlng, { draggable: true })
+                    .addTo(map)
+                    .bindPopup("Your current location")
+                    .openPopup();
+    
+                driverMarker.on("dragend", (evt) => setLocInput(evt.target.getLatLng()));
+            } else {
+                driverMarker.setLatLng(latlng);
+            }
+            setLocInput(latlng);
+        });
+    
+        // Try browser geolocation
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(
+                (pos) => {
+                    const latlng = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+                    map.setView(latlng, 14);
+                    if (!driverMarker) {
+                        driverMarker = L.marker(latlng, { draggable: true })
+                            .addTo(map)
+                            .bindPopup("Your current location")
+                            .openPopup();
+                        driverMarker.on("dragend", (evt) => setLocInput(evt.target.getLatLng()));
+                    } else {
+                        driverMarker.setLatLng(latlng);
+                    }
+                    setLocInput(latlng);
+                },
+                () => {}
+            );
+        }
+    
+        // Utility: Parse "lat,lng" text
+        const latLngFromText = (txt) => {
+            if (!txt) return null;
+            const m = String(txt).trim().match(/^(-?\d+(\.\d+)?)\s*,\s*(-?\d+(\.\d+)?)$/);
+            if (!m) return null;
+            return { lat: parseFloat(m[1]), lng: parseFloat(m[3]) };
+        };
+    
+        // Calculate ETA in minutes (distance in km / 40 km/h avg speed)
+        function calcETA(lat1, lng1, lat2, lng2) {
+            const R = 6371; // km
+            const dLat = (lat2 - lat1) * Math.PI / 180;
+            const dLng = (lng2 - lng1) * Math.PI / 180;
+            const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180) * Math.cos(lat2*Math.PI/180) * Math.sin(dLng/2)**2;
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+            const distance = R * c; // in km
+            const etaMinutes = Math.round((distance / 40) * 60); // assuming 40 km/h
+            return `${etaMinutes} min`;
+        }
+    
+        // Plot pending rides
+        const rides = Array.isArray(window.__PENDING_RIDES__) ? window.__PENDING_RIDES__ : [];
+        const markers = [];
+    
+        rides.forEach((ride) => {
+            const pickupLL = latLngFromText(ride.pickup);
+            const destLL = latLngFromText(ride.destination);
+    
+            if (pickupLL) {
+                const m = L.marker(pickupLL).addTo(map).bindPopup(`<b>Pickup</b><br/>${ride.pickup}`);
+                markers.push(m);
+            }
+            if (destLL) {
+                const m = L.marker(destLL).addTo(map).bindPopup(`<b>Destination</b><br/>${ride.destination}`);
+                markers.push(m);
+            }
+        });
+    
+        // Show ETA from driver → pickups
+        if (driverMarker) {
+            rides.forEach((ride) => {
+                const pickupLL = latLngFromText(ride.pickup);
+                if (pickupLL) {
+                    const eta = calcETA(driverMarker.getLatLng().lat, driverMarker.getLatLng().lng, pickupLL.lat, pickupLL.lng);
+                    console.log(`ETA to ${ride.pickup}: ${eta}`);
+                }
+            });
+        }
+    })();
+    </script>
+    
+{% endblock %}
