@@ -1,0 +1,32 @@
+# VCS
+.git
+.gitignore
+.github
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+
+# SECRETS. This repo has a committed .env holding real-looking PayPal, M-Pesa
+# and Airtel Money credentials. It must never enter an image or a layer.
+.env
+.env.*
+*.pem
+*.key
+
+# Stray code-generation scratch script for an unrelated project. Never
+# imported; creates directories under a hardcoded /home/harold path if it is.
+app/g.py
+
+# Local noise
+.DS_Store
+*.swp
+.idea/
+.vscode/
+Dockerfile
+.dockerignore
+DEPLOY.md

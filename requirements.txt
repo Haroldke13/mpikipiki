@@ -1,0 +1,37 @@
+# GENERATED for deployment by reading every import in app/*.py and app.py.
+# This repo had no requirements.txt; nothing here is a guess carried over from
+# a sibling project.
+#
+#   flask            app/__init__.py, app/routes.py
+#   flask-pymongo    app/__init__.py  (mongo = PyMongo())
+#   pymongo / bson   app/__init__.py, app/models.py, app/routes.py
+#   flask-login      app/__init__.py, app/models.py, app/routes.py
+#   flask-wtf        app/__init__.py (CSRFProtect), app/forms.py (FlaskForm)
+#   wtforms          app/forms.py
+#   email-validator  required by wtforms.validators.Email in app/forms.py
+#   werkzeug         app/models.py (generate_password_hash/check_password_hash)
+#   python-dotenv    app.py (load_dotenv)
+#   gunicorn         production WSGI server (added for deployment)
+#
+# app/g.py is NOT represented here: it is a stray code-generation scratch
+# script for an unrelated project, it is never imported, and it writes to a
+# hardcoded /home/harold/Desktop path if it ever is. Delete it.
+
+Flask==3.1.0
+Werkzeug==3.1.3
+Jinja2==3.1.5
+itsdangerous==2.2.0
+click==8.1.8
+MarkupSafe==3.0.2
+
+Flask-PyMongo==2.3.0
+pymongo==4.10.1
+dnspython==2.7.0
+
+Flask-Login==0.6.3
+Flask-WTF==1.2.2
+WTForms==3.2.1
+email-validator==2.2.0
+
+python-dotenv==1.0.1
+gunicorn==23.0.0
